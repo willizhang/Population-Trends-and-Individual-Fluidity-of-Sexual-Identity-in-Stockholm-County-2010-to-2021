@@ -1,13 +1,12 @@
 ### This repository contains the R scripts for:
 
-Guoqiang Zhang, Per Tynelius, Maya B. Mathur, Matteo Quartagno, Gunnar Brandén, Fredrik Liljeros, Kyriaki Kosidou. **Population Trends and Individual Fluidity of Sexual Identity and Associated Sociodemographic Factors in Stockholm County, 2010 to 2021.** 2024. _In Manuscript._
+Guoqiang Zhang, Per Tynelius, Maya B. Mathur, Matteo Quartagno, Gunnar Brandén, Fredrik Liljeros, Kyriaki Kosidou. **Population Trends and Individual Fluidity of Sexual Identity in Stockholm County, 2010 to 2021.** 2024. _In Manuscript._
 
 The R scripts include:
 * **SPHC-2010.Rmd:** analyses of sexual identity using SPHC 2010 dataset.
 * **SPHC-2014.Rmd:** analyses of sexual identity using SPHC 2014 dataset.
 * **SPHC-2021.Rmd:** analyses of sexual identity using SPHC 2021 dataset.
 * **SPHC-2002-2006-2010.Rmd:** analyses of sexual identity fluidity from 2010 to 2021 using the pooled cohort from SPHC 2002, 2006, and 2010.
-* **Summary_plots_cc.Rmd:** drawing summary plots from complete-case analyses.
 * **Summary_plots_imp.Rmd:** drawing summary plots from multiple imputation analyses.
 
 <small>_Notes:_ For simplicity, we use the term “SPHC-B + year” for the Stockholm Public Health Cohort (SPHC) baseline surveys, and “SPHC + year” for both baseline and follow-up surveys for a given cohort; for example, SPHC-B 2010 represents the baseline survey initiated in 2010, and SPHC 2010 denotes the cohort including SPHC-B 2010 and the follow-up surveys in 2014 and 2021. See Figure 1 below for an overview of SPHC surveys.<small>
