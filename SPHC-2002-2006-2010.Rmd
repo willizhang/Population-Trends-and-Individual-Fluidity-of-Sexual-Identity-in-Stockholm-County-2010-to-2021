@@ -14,15 +14,11 @@ This R Notebook illustrates changes in sexual identity from 2010 to 2021 among p
 ### 1. Load Packages
 ```{r}
 library(haven)
-library(naniar)
-library(dplyr)
 library(tidyverse)
-library(finalfit)
-library(ggplot2)
+library(naniar)
 library(ggalluvial)
 library(ggbreak)
 library(ggrepel)
-library(grDevices)
 ```
 
 ### 2. The Stockholm Public Health Cohort
@@ -65,143 +61,6 @@ table( d_2002$sex, useNA = "always" )
 summary( d_2002$F2alder )
 d_2002$age_2002 <- d_2002$F2alder
 d_2002$age_2010 <- d_2002$age_2002 + 8
-d_2002$age_2010_cat <- factor( ifelse( d_2002$age_2010 <= 29, "16-29", 
-                                       ifelse( d_2002$age_2010 >=30 & d_2002$age_2010 <= 44, "30-44",
-                                               ifelse( d_2002$age_2010 >= 45 & d_2002$age_2010 <= 59, "45-59", ">=60" ) ) ),
-                               levels = c( "16-29", "30-44", "45-59", ">=60" ) )
-table( d_2002$age_2010_cat, useNA = "always" )
-
-# country of birth
-table( d_2002$fodelseland, useNA = "always" )
-d_2002$fodelseland[ d_2002$fodelseland == "" ] <- NA
-d_2002$country_of_birth <- factor( ifelse( d_2002$fodelseland == "Afrika", "Africa",
-                                           ifelse( d_2002$fodelseland == "Asien", "Asia",
-                                                   ifelse( d_2002$fodelseland == "Europa", "Europe",
-                                                           ifelse( d_2002$fodelseland == "Sverige", "Sweden", "Americas" ) ) ) ),
-                                   levels = c( "Africa", "Americas", "Asia", "Europe", "Sweden" ) )
-table( d_2002$country_of_birth, useNA = "always" )
-
-# sampling strata
-n_miss( d_2002$stratum )
-d_2002$sampling_strata <- as.factor( d_2002$stratum )
-length( unique( d_2002$sampling_strata ) )
-
-strata_region_name <- readxl::read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/SPHC/SPHC data/Stratum.xlsx")
-
-strata_region_name$region_2002 <- as.factor( strata_region_name$region_2002 )
-
-d_2002 <- d_2002 %>% 
-  left_join( strata_region_name[ , c( 1, 5 ) ], by = c( "sampling_strata" = "region_2002" ) )
-
-d_2002$sampling_strata_region <- d_2002$sdk_2002
-
-d_2002$sampling_strata_region <- ifelse( d_2002$sampling_strata == "998" | d_2002$sampling_strata == "999", "Unknown",
-                                         d_2002$sampling_strata_region )
-
-
-##### design weights #####
-
-summary( d_2002$F2dvikt )
-d_2002$design_weight <- d_2002$F2dvikt
-
-
-##### non-response #####
-
-# unit non-response
-d_2002$design_weight_unit_nonresponse <- d_2002$F2dbvikt # weights calculated assuming Missing Completely At Random (MCAR) within each stratum
-summary( d_2002$design_weight_unit_nonresponse )
-sum( d_2002$design_weight_unit_nonresponse ) # No. of source population = 1,402,160
-
-
-##### summary of stratified sampling #####
-
-# because stratified random sampling was done by region and sex,
-# the following analyses were conducted separately for males and females
-
-# among males
-d_2002_males <- d_2002 %>% filter( sex == "Male" )
-
-unitresponse_prob <- d_2002_males %>% 
-  group_by( sampling_strata_region ) %>% 
-  summarise( unitresponse_prob = unique( design_weight ) / unique( design_weight_unit_nonresponse ),
-             no.of.population = sum( design_weight_unit_nonresponse ),
-             sample_size = unique( no.of.population )/unique( design_weight ) ) # calculate overall unit response rate, and no. of population and sample size within each stratum
-
-d_2002_males <- d_2002_males %>% 
-  left_join( unitresponse_prob, by = "sampling_strata_region" )
-
-itemresponse_prob <- d_2002_males %>% 
-  group_by( sampling_strata_region ) %>% 
-  summarise( itemresponse_prob = sum( !is.na( sexual_identity_2010 ) ) / n() ) # calculate item response rate
-
-d_2002_males <- d_2002_males %>% 
-  left_join( itemresponse_prob, by = "sampling_strata_region" ) %>% 
-  mutate( itemresponse_prob = ifelse( is.na( sexual_identity_2010 ), 0, itemresponse_prob ) )
-
-sampling_frame_2002_males <- as.data.frame( d_2002_males %>% 
-                                        group_by( sampling_strata_region ) %>% 
-                                        reframe( no.of.population = unique( no.of.population ), 
-                                                 sample_size = unique( no.of.population/design_weight ),
-                                                 unitresponse = n(),
-                                                 itemresponse = sum( itemresponse_prob != 0 ) ) )
-
-sampling_frame_2002_males$unitresponse_rate <- sampling_frame_2002_males$unitresponse/sampling_frame_2002_males$sample_size
-sampling_frame_2002_males$itemresponse_rate <- sampling_frame_2002_males$itemresponse/sampling_frame_2002_males$unitresponse
-sampling_frame_2002_males$overallresponse_rate <- sampling_frame_2002_males$itemresponse/sampling_frame_2002_males$sample_size
-
-sampling_frame_2002_males$unitresponse_label <- paste0( sampling_frame_2002_males$unitresponse, " (", 
-                                                  sprintf( "%.1f", sampling_frame_2002_males$unitresponse_rate*100 ), "%)" )
-sampling_frame_2002_males$overallresponse_label <- paste0( sampling_frame_2002_males$itemresponse, " (", 
-                                                     sprintf( "%.1f", sampling_frame_2002_males$overallresponse_rate*100 ), "%)" )
-
-round( sum( sampling_frame_2002_males$unitresponse )/( sum( sampling_frame_2002_males$sample_size ) ), 3 ) # overall unit response rate
-round( sum( sampling_frame_2002_males$itemresponse )/( sum( sampling_frame_2002_males$unitresponse ) ), 3 ) # overall item response rate
-round( sum( sampling_frame_2002_males$itemresponse )/( sum( sampling_frame_2002_males$sample_size ) ), 3 ) # overall response rate
-
-writexl::write_xlsx( sampling_frame_2002_males, "sampling_frame_2002_males.xlsx" )
-
-
-# among females
-d_2002_females <- d_2002 %>% filter( sex == "Female" )
-
-unitresponse_prob <- d_2002_females %>% 
-  group_by( sampling_strata_region ) %>% 
-  summarise( unitresponse_prob = unique( design_weight ) / unique( design_weight_unit_nonresponse ),
-             no.of.population = sum( design_weight_unit_nonresponse ),
-             sample_size = unique( no.of.population )/unique( design_weight ) ) # calculate overall unit response rate, and no. of population and sample size within each stratum
-
-d_2002_females <- d_2002_females %>% 
-  left_join( unitresponse_prob, by = "sampling_strata_region" )
-
-itemresponse_prob <- d_2002_females %>% 
-  group_by( sampling_strata_region ) %>% 
-  summarise( itemresponse_prob = sum( !is.na( sexual_identity_2010 ) ) / n() ) # calculate item response rate
-
-d_2002_females <- d_2002_females %>% 
-  left_join( itemresponse_prob, by = "sampling_strata_region" ) %>% 
-  mutate( itemresponse_prob = ifelse( is.na( sexual_identity_2010 ), 0, itemresponse_prob ) )
-
-sampling_frame_2002_females <- as.data.frame( d_2002_females %>% 
-                                        group_by( sampling_strata_region ) %>% 
-                                        reframe( no.of.population = unique( no.of.population ), 
-                                                 sample_size = unique( no.of.population/design_weight ),
-                                                 unitresponse = n(),
-                                                 itemresponse = sum( itemresponse_prob != 0 ) ) )
-
-sampling_frame_2002_females$unitresponse_rate <- sampling_frame_2002_females$unitresponse/sampling_frame_2002_females$sample_size
-sampling_frame_2002_females$itemresponse_rate <- sampling_frame_2002_females$itemresponse/sampling_frame_2002_females$unitresponse
-sampling_frame_2002_females$overallresponse_rate <- sampling_frame_2002_females$itemresponse/sampling_frame_2002_females$sample_size
-
-sampling_frame_2002_females$unitresponse_label <- paste0( sampling_frame_2002_females$unitresponse, " (", 
-                                                  sprintf( "%.1f", sampling_frame_2002_females$unitresponse_rate*100 ), "%)" )
-sampling_frame_2002_females$overallresponse_label <- paste0( sampling_frame_2002_females$itemresponse, " (", 
-                                                     sprintf( "%.1f", sampling_frame_2002_females$overallresponse_rate*100 ), "%)" )
-
-round( sum( sampling_frame_2002_females$unitresponse )/( sum( sampling_frame_2002_females$sample_size ) ), 3 ) # overall unit response rate
-round( sum( sampling_frame_2002_females$itemresponse )/( sum( sampling_frame_2002_females$unitresponse ) ), 3 ) # overall item response rate
-round( sum( sampling_frame_2002_females$itemresponse )/( sum( sampling_frame_2002_females$sample_size ) ), 3 ) # overall response rate
-
-writexl::write_xlsx( sampling_frame_2002_females, "sampling_frame_2002_females.xlsx" )
 ```
 
 #### 2.2. SPHC 2006
@@ -243,94 +102,6 @@ table( d_2006$sex, useNA = "always" )
 summary( d_2006$F6alder )
 d_2006$age_2006 <- d_2006$F6alder
 d_2006$age_2010 <- d_2006$age_2006 + 4
-d_2006$age_2010_cat <- factor( ifelse( d_2006$age_2010 <= 29, "16-29", 
-                                       ifelse( d_2006$age_2010 >=30 & d_2006$age_2010 <= 44, "30-44",
-                                               ifelse( d_2006$age_2010 >= 45 & d_2006$age_2010 <= 59, "45-59", ">=60" ) ) ),
-                               levels = c( "16-29", "30-44", "45-59", ">=60" ) )
-table( d_2006$age_2010_cat, useNA = "always" )
-
-# country of birth
-table( d_2006$fodelseland, useNA = "always" )
-d_2006$country_of_birth <- factor( ifelse( d_2006$fodelseland == "Afrika", "Africa",
-                                           ifelse( d_2006$fodelseland == "Asien", "Asia",
-                                                   ifelse( d_2006$fodelseland == "Europa", "Europe",
-                                                           ifelse( d_2006$fodelseland == "Sverige", "Sweden", "Americas" ) ) ) ),
-                                   levels = c( "Africa", "Americas", "Asia", "Europe", "Sweden" ) )
-table( d_2006$country_of_birth, useNA = "always" )
-
-# sampling strata
-n_miss( d_2006$stratum )
-d_2006$sampling_strata <- as.factor( d_2006$stratum )
-length( unique( d_2006$sampling_strata ) ) # 43 strata
-
-strata_region_name <- readxl::read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/SPHC/SPHC data/Stratum.xlsx")
-
-strata_region_name$region_2006 <- as.factor( strata_region_name$region_2006 )
-
-d_2006 <- d_2006 %>% 
-  left_join( strata_region_name[ , c( 2, 6 ) ], by = c( "sampling_strata" = "region_2006" ) )
-
-d_2006$sampling_strata_region <- d_2006$sdk_2006
-
-
-##### design weights #####
-
-summary( d_2006$F6dvikt )
-d_2006$design_weight <- d_2006$F6dvikt
-
-
-##### non-response #####
-
-# unit non-response
-d_2006$design_weight_unit_nonresponse <- d_2006$F6dbvikt # weights calculated assuming Missing Completely At Random (MCAR) within each stratum
-summary( d_2006$design_weight_unit_nonresponse )
-sum( d_2006$design_weight_unit_nonresponse ) # No. of source population = 1,450,501
-
-unitresponse_prob <- d_2006 %>% 
-  group_by( sampling_strata_region ) %>% 
-  summarise( unitresponse_prob = unique( design_weight ) / unique( design_weight_unit_nonresponse ),
-             no.of.population = sum( design_weight_unit_nonresponse ),
-             sample_size = unique( no.of.population )/unique( design_weight ) ) # calculate overall unit response rate, and no. of population and sample size within each stratum
-d_2006 <- d_2006 %>% 
-  left_join( unitresponse_prob, by = "sampling_strata_region" )
-
-# item non-response
-itemresponse_prob <- d_2006 %>% 
-  group_by( sampling_strata_region ) %>% 
-  summarise( itemresponse_prob = sum( !is.na( sexual_identity_2010 ) ) / n() ) # calculate item response rate
-
-d_2006 <- d_2006 %>% 
-  left_join( itemresponse_prob, by = "sampling_strata_region" ) %>% 
-  mutate( itemresponse_prob = ifelse( is.na( sexual_identity_2010 ), 0, itemresponse_prob ) )
-
-
-##### summary of stratified sampling #####
-
-sampling_frame_2006 <- as.data.frame( d_2006 %>% 
-                                        group_by( sampling_strata_region ) %>% 
-                                        reframe( no.of.population = unique( no.of.population ), 
-                                                 sample_size = unique( no.of.population/design_weight ),
-                                                 unitresponse = n(),
-                                                 itemresponse = sum( itemresponse_prob != 0 ) ) )
-
-sampling_frame_2006 <- sampling_frame_2006 %>% 
-  left_join( strata_region_name[ , c( 2, 6 ) ], by = c( "sampling_strata_region" = "sdk_2006" ) ) %>%
-  arrange( region_2006 )
-
-sampling_frame_2006$unitresponse_rate <- sampling_frame_2006$unitresponse/sampling_frame_2006$sample_size
-sampling_frame_2006$itemresponse_rate <- sampling_frame_2006$itemresponse/sampling_frame_2006$unitresponse
-sampling_frame_2006$overallresponse_rate <- sampling_frame_2006$itemresponse/sampling_frame_2006$sample_size
-
-sampling_frame_2006$unitresponse_label <- paste0( sampling_frame_2006$unitresponse, " (", 
-                                                  sprintf( "%.1f", sampling_frame_2006$unitresponse_rate*100 ), "%)" )
-sampling_frame_2006$overallresponse_label <- paste0( sampling_frame_2006$itemresponse, " (", 
-                                                     sprintf( "%.1f", sampling_frame_2006$overallresponse_rate*100 ), "%)" )
-
-round( sum( sampling_frame_2006$unitresponse )/( sum( sampling_frame_2006$sample_size ) ), 3 ) # overall unit response rate
-round( sum( sampling_frame_2006$itemresponse )/( sum( sampling_frame_2006$unitresponse ) ), 3 ) # overall item response rate
-round( sum( sampling_frame_2006$itemresponse )/( sum( sampling_frame_2006$sample_size ) ), 3 ) # overall response rate
-
-writexl::write_xlsx( sampling_frame_2006, "sampling_frame_2006.xlsx" )
 ```
 
 #### 2.3. SPHC 2010
@@ -371,79 +142,14 @@ table( d_2010$sex, useNA = "always" )
 # age
 summary( d_2010$F10alder )
 d_2010$age_2010 <- d_2010$F10alder
-d_2010$age_2010_cat <- factor( ifelse( d_2010$age_2010 <= 29, "16-29", 
-                                       ifelse( d_2010$age_2010 >=30 & d_2010$age_2010 <= 44, "30-44",
-                                               ifelse( d_2010$age_2010 >= 45 & d_2010$age_2010 <= 59, "45-59", ">=60" ) ) ),
-                               levels = c( "16-29", "30-44", "45-59", ">=60" ) )
-table( d_2010$age_2010_cat, useNA = "always" )
-
-# country of birth
-table( d_2010$fodelseland, useNA = "always" )
-d_2010$country_of_birth <- factor( ifelse( d_2010$fodelseland == "Afrika", "Africa",
-                                           ifelse( d_2010$fodelseland == "Asien", "Asia",
-                                                   ifelse( d_2010$fodelseland == "Europa", "Europe",
-                                                           ifelse( d_2010$fodelseland == "Sverige", "Sweden", "Americas" ) ) ) ),
-                                   levels = c( "Africa", "Americas", "Asia", "Europe", "Sweden" ) )
-table( d_2010$country_of_birth, useNA = "always" )
-
-# education
-table( d_2010$utbniva2010, useNA = "always" )
-d_2010$education <- factor( ifelse( d_2010$utbniva2010 <= 2, "<=9 years",
-                                    ifelse( d_2010$utbniva2010 <= 4, "10-12 years", ">=13 years" ) ), 
-                            levels = c( "<=9 years", "10-12 years", ">=13 years" ) )
-table( d_2010$education, useNA = "always" )
-
-# disposable income
-summary( d_2010$dispink2010, useNA = "always" )
-d_2010$dispink2010 <- d_2010$dispink2010*( 1960/1733 ) # Consumer Price Index (CPI)-adjusted income
-d_2010$income <- factor( ifelse( d_2010$dispink2010 <= 2500, "<=2,500",
-                                 ifelse( d_2010$dispink2010 > 2500 & d_2010$dispink2010 <= 3500, "(2,500, 3,500]",
-                                         ifelse( d_2010$dispink2010 > 3500 & d_2010$dispink2010 <= 4500, "(3,500, 4,500]", ">4,500" ) ) ),
-                         levels = c( "<=2,500", "(2,500, 3,500]", "(3,500, 4,500]", ">4,500" ) )
-table( d_2010$income, useNA = "always" )
-
-# marital status
-table( d_2010$civil2010, useNA = "always" )
-d_2010$marital_status <- factor( ifelse( d_2010$civil2010 == "G" | d_2010$civil2010 == "RP", "Currently married",
-                                         ifelse( d_2010$civil2010 == "OG", "Never married", "Other" ) ), 
-                                 levels = c( "Never married", "Currently married", "Other" ) )
-table( d_2010$marital_status, useNA = "always" )
-
-# living alone
-table( d_2010$F10U53aG57a, useNA = "always" )
-d_2010$F10U53aG57a[ d_2010$F10U53aG57a == 9 ] <- NA
-d_2010$living_alone <- factor( ifelse( d_2010$F10U53aG57a == 1, "no", "yes" ), 
-                               levels = c( "yes", "no" ) )
-table( d_2010$living_alone, useNA = "always" )
-
-# personal support
-table( d_2010$F10U57G62, useNA = "always" )
-d_2010$F10U57G62[ d_2010$F10U57G62 == 9 ] <- NA
-d_2010$personal_support <- factor( ifelse( d_2010$F10U57G62 <= 2, "yes", "no" ), 
-                                   levels = c( "yes", "no" ) )
-table( d_2010$personal_support, useNA = "always" )
-
-# sampling strata
-n_miss( d_2010$stratum )
-d_2010$sampling_strata <- as.factor( d_2010$stratum )
-length( unique( d_2010$sampling_strata ) ) # 39 strata
-
-strata_region_name$region_2010 <- as.factor( strata_region_name$region_2010 )
-
-d_2010 <- d_2010 %>% 
-  left_join( strata_region_name[ , c( 3, 7 ) ], by = c( "sampling_strata" = "region_2010" ) )
-
-d_2010$sampling_strata_region <- d_2010$sdk_2010
 ```
 
 #### 2.4. Merge data across surveys
 ```{r}
-##### obtain follow-up data in 2010-2021 for SPHC-B 2002 and 2006 #####
+# there are 999 individuals who participated in both SPHC 2002 and 2006
+# their follow-up data were included only once
 
-# there are 999 individuals who participated in both SPHC-B 2002 and 2006
-# their follow-up data are included only once
-
-variable_list <- c( "lopnr", "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_2010", "sex", "country_of_birth", "sampling_strata_region" )
+variable_list <- c( "lopnr", "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_2010", "sex" )
   
 m1 <- d_2002[ , variable_list ] %>%
   mutate( year = rep( "SPHC 2002" ) )
@@ -456,95 +162,33 @@ m12 <- rbind( m1, m2 ) %>%
   filter( !( year == "SPHC 2002" & any( year == "SPHC 2006" ) ) ) %>%
   ungroup()
 
-sphcf10 <- read_sas( "/Volumes/LGBT Project data/sphc-f10.sas7bdat",
-                     col_select = c( "lopnr", "utbniva2010", "dispink2010", "civil2010", "F10F80a", "F10F84" ) )
-
-m12_updated <- sphcf10 %>%
-  left_join( m12, by = "lopnr" )
-
 # age
-summary( m12_updated$age_2010 )
-m12_updated$age_conf <- m12_updated$age_2010
-m12_updated$age_exp <- factor( ifelse( m12_updated$age_2010 <= 29, "<=29", 
-                                       ifelse( m12_updated$age_2010 >=30 & m12_updated$age_2010 <= 44, "30-44",
-                                               ifelse( m12_updated$age_2010 >= 45 & m12_updated$age_2010 <= 59, "45-59", ">=60" ) ) ),
-                               levels = c( "45-59", "<=29", "30-44", ">=60" ) )
-table( m12_updated$age_exp, useNA = "always" )
+summary( m12$age_2010 )
+m12$age_exp <- factor( ifelse( m12$age_2010 <= 29, "<=29",
+                               ifelse( m12$age_2010 >=30 & m12$age_2010 <= 44, "30-44",
+                                       ifelse( m12$age_2010 >= 45 & m12$age_2010 <= 59, "45-59", ">=60" ) ) ),
+                       levels = c( "45-59", "<=29", "30-44", ">=60" ) )
+table( m12$age_exp, useNA = "always" )
 
 # sex
-summary( m12_updated$sex )
-m12_updated$sex_exp <-relevel( m12_updated$sex, ref = "Male" )
-m12_updated$sex_conf <- m12_updated$sex
-
-# country of birth
-summary( m12_updated$country_of_birth )
-m12_updated$country_of_birth <- factor( ifelse( m12_updated$country_of_birth == "Sweden", "Sweden",
-                                                ifelse( m12_updated$country_of_birth == "Europe", "Europe", "Outside Europe" ) ),
-                                        levels = c( "Sweden", "Europe", "Outside Europe" ) )
-m12_updated$country_of_birth_exp <- m12_updated$country_of_birth
-m12_updated$country_of_birth_conf <- m12_updated$country_of_birth
-table( m12_updated$country_of_birth_exp, useNA = "always" )
-
-# education
-table( m12_updated$utbniva2010, useNA = "always" )
-m12_updated$education <- factor( ifelse( m12_updated$utbniva2010 <= 2, "<=9 years",
-                                         ifelse( m12_updated$utbniva2010 <= 4, "10-12 years", ">=13 years" ) ), 
-                                 levels = c( "<=9 years", "10-12 years", ">=13 years" ) )
-m12_updated$education_exp <- relevel( m12_updated$education, ref = ">=13 years" )
-m12_updated$education_conf <- m12_updated$education
-table( m12_updated$education_exp, useNA = "always" )
-
-# disposable income
-summary( m12_updated$dispink2010, useNA = "always" )
-m12_updated$dispink2010 <- m12_updated$dispink2010*( 1960/1733 ) # Consumer Price Index (CPI)-adjusted income
-m12_updated$income_conf <- m12_updated$dispink2010
-m12_updated$income_exp <- factor( ifelse( m12_updated$dispink2010 <= 2500, "<=2,500",
-                                          ifelse( m12_updated$dispink2010 > 2500 & m12_updated$dispink2010 <= 3500, "(2,500, 3,500]",
-                                                  ifelse( m12_updated$dispink2010 > 3500 & m12_updated$dispink2010 <= 4500, "(3,500, 4,500]", ">4,500" ) ) ),
-                                  levels = c( ">4,500", "<=2,500", "(2,500, 3,500]", "(3,500, 4,500]" ) )
-table( m12_updated$income_exp, useNA = "always" )
-
-# marital status
-table( m12_updated$civil2010, useNA = "always" )
-m12_updated$civil2010[ m12_updated$civil2010 == "" ] <- NA
-m12_updated$marital_status_exp <- factor( ifelse( m12_updated$civil2010 == "G" | m12_updated$civil2010 == "RP", "Currently married",
-                                                  ifelse( m12_updated$civil2010 == "OG", "Never married", "Other" ) ), 
-                                          levels = c( "Currently married", "Never married", "Other" ) )
-m12_updated$marital_status_conf <- m12_updated$marital_status_exp
-table( m12_updated$marital_status_exp, useNA = "always" )
-
-# living alone
-table( m12_updated$F10F80a, useNA = "always" )
-m12_updated$living_status_conf <- as.factor( m12_updated$F10F80a )
-m12_updated$living_status_exp <- factor( ifelse( m12_updated$F10F80a == 1, "no", "yes" ), 
-                                         levels = c( "no", "yes" ) )
-table( m12_updated$living_status_exp, useNA = "always" )
-
-# personal support
-table( m12_updated$F10F84, useNA = "always" )
-m12_updated$personal_support <- factor( ifelse( m12_updated$F10F84 <= 2, "yes", "no" ), 
-                                        levels = c( "yes", "no" ) )
-m12_updated$personal_support_exp <- m12_updated$personal_support
-m12_updated$personal_support_conf <- m12_updated$personal_support
-table( m12_updated$personal_support_exp, useNA = "always" )
+summary( m12$sex )
+m12$sex_exp <-relevel( m12$sex, ref = "Male" )
 
 # year
-table( m12_updated$year, useNA = "always" )
-m12_updated$year_conf <- as.factor( m12_updated$year )
-m12_updated$year_exp <- factor( m12_updated$year, levels = c( "SPHC 2002", "SPHC 2006" ) )
+m12$year <- as.factor( m12$year )
+table( m12$year, useNA = "always" )
 
-summary( m12_updated )
-d_2002_2006_follow_up <- m12_updated %>%
-  select( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "age_conf", "sex_exp", "sex_conf", "country_of_birth_exp", "country_of_birth_conf", "education_exp", "education_conf", "income_exp", "income_conf", "marital_status_exp", "marital_status_conf", "living_status_exp", "living_status_conf", "personal_support_exp", "personal_support_conf", "year_exp", "year_conf" )
+summary( m12 )
+d_2002_2006_follow_up <- m12 %>%
+  select( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "sex_exp", "year" )
 
 
-##### obtain follow-up data in 2010-2021 for SPHC-B 2010 #####
+##### obtain follow-up data in 2010-2021 for SPHC 2010 #####
 
 d_2010 <- d_2010 %>% mutate( year = rep( "SPHC 2010" ) )
 
 # age
 summary( d_2010$age_2010 )
-d_2010$age_conf <- d_2010$age_2010
 d_2010$age_exp <- factor( ifelse( d_2010$age_2010 <= 29, "<=29", 
                               ifelse( d_2010$age_2010 >=30 & d_2010$age_2010 <= 44, "30-44",
                                       ifelse( d_2010$age_2010 >= 45 & d_2010$age_2010 <= 59, "45-59", ">=60" ) ) ),
@@ -553,57 +197,14 @@ table( d_2010$age_exp, useNA = "always" )
 
 # sex
 summary( d_2010$sex )
-d_2010$sex_conf <- d_2010$sex
 d_2010$sex_exp <- relevel( d_2010$sex, ref = "Male" )
-
-# country of birth
-summary( d_2010$country_of_birth )
-d_2010$country_of_birth <- factor( ifelse( d_2010$country_of_birth == "Sweden", "Sweden",
-                                           ifelse( d_2010$country_of_birth == "Europe", "Europe", "Outside Europe" ) ),
-                                   levels = c( "Sweden", "Europe", "Outside Europe" ) )
-d_2010$country_of_birth_exp <- d_2010$country_of_birth
-d_2010$country_of_birth_conf <- d_2010$country_of_birth
-
-
-# education
-summary( d_2010$education )
-d_2010$education_conf <- d_2010$education
-d_2010$education_exp <- relevel( d_2010$education, ref = ">=13 years" )
-
-# disposable income
-summary( d_2010$dispink2010 )
-summary( d_2010$income )
-d_2010$income_conf <- d_2010$dispink2010
-d_2010$income_exp <- relevel( d_2010$income, ref = ">4,500" )
-
-# marital status
-summary( d_2010$marital_status )
-d_2010$marital_status_conf <- d_2010$marital_status
-d_2010$marital_status_exp <- relevel( d_2010$marital_status, ref = "Currently married" )
-
-# living alone
-table( d_2010$F10U53aG57a, useNA = "always" )
-d_2010$F10U53aG57a[ d_2010$F10U53aG57a == 9 ] <- NA
-summary( d_2010$living_alone )
-d_2010$living_status_conf <- as.factor( d_2010$F10U53aG57a )
-d_2010$living_status_exp <- relevel( d_2010$living_alone, ref = "no" )
-
-# personal support
-summary( d_2010$personal_support )
-d_2010$personal_support_conf <- d_2010$personal_support
-d_2010$personal_support_exp <- relevel( d_2010$personal_support, ref = "yes" )
-
-# year
-table( d_2010$year, useNA = "always" )
-d_2010$year_conf <- as.factor( d_2010$year )
-d_2010$year_exp <- as.factor( d_2010$year )
 
 summary( d_2010 )
 d_2010_follow_up <- d_2010 %>%
-  select( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "age_conf", "sex_exp", "sex_conf", "country_of_birth_exp", "country_of_birth_conf", "education_exp", "education_conf", "income_exp", "income_conf", "marital_status_exp", "marital_status_conf", "living_status_exp", "living_status_conf", "personal_support_exp", "personal_support_conf", "year_exp", "year_conf" )
+  select( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "sex_exp", "year" )
 
 
-##### merge follow-up data in 2010-2021 for SPHC-B 2002, 2006, and 2010 #####
+##### merge follow-up data in 2010-2021 for SPHC 2002, 2006, and 2010 #####
 
 d_2002_2006_2010_follow_up <- rbind( d_2002_2006_follow_up, d_2010_follow_up )
 
@@ -619,86 +220,7 @@ d_sexual_identity_fluidity <- d_2002_2006_2010_follow_up[
     !is.na( d_2002_2006_2010_follow_up$sexual_identity_2014 ) &
     !is.na( d_2002_2006_2010_follow_up$sexual_identity_2021 ), c( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "sex_exp" ) ]
 nrow( d_sexual_identity_fluidity ) # 34,815 provided data on sexual identity in 2010-2021
-
-# calculate the number of people who changed their sexual identity at least once
-changed_once <- sum(
-  d_sexual_identity_fluidity$sexual_identity_2010 != d_sexual_identity_fluidity$sexual_identity_2014 | 
-  d_sexual_identity_fluidity$sexual_identity_2010 != d_sexual_identity_fluidity$sexual_identity_2021 |
-  d_sexual_identity_fluidity$sexual_identity_2014 != d_sexual_identity_fluidity$sexual_identity_2021
-)
-
-# calculate the number of people who changed their sexual identity twice
-changed_twice <- sum(
-  d_sexual_identity_fluidity$sexual_identity_2010 != d_sexual_identity_fluidity$sexual_identity_2014 &
-  d_sexual_identity_fluidity$sexual_identity_2014 != d_sexual_identity_fluidity$sexual_identity_2021
-)
-
-
-d_fluidity_model <- subset( d_2002_2006_2010_follow_up, 
-                            select = -c( sexual_identity_2014, sexual_identity_2021 ) ) %>%
-  filter( !is.na( sexual_identity_fluidity ) )
-miss_case_summary( d_fluidity_model ) # no cases had missing data on all variables
-nrow( d_fluidity_model ) # 36,398 participants with (incomplete) follow-up data on demographic variables
-
-# sexual identity in 2010
-summary( d_fluidity_model$sexual_identity_2010 )
-d_fluidity_model$sexual_identity_2010_exp <- relevel( d_fluidity_model$sexual_identity_2010, ref = "Heterosexual" )
-d_fluidity_model$sexual_identity_2010_conf <- d_fluidity_model$sexual_identity_2010
-
-
-# make characteristics table by change in sexual identity
-explanatory =  c( "year_exp", "sex_exp", "age_exp", "country_of_birth_exp", "education_exp", "income_exp", "marital_status_exp", "living_status_exp", "personal_support_exp", "sexual_identity_2010" )
-dependent = "sexual_identity_fluidity"
-
-d_follow_up_table <- d_fluidity_model %>% 
-  mutate( sexual_identity_fluidity = factor( sexual_identity_fluidity, levels = c( 0, 1 ), labels = c( "no change", "change" ) ) ) %>%
-  summary_factorlist( dependent,
-                      explanatory, 
-                      na_include = TRUE,
-                      total_col = TRUE,
-                      add_col_totals = TRUE,
-                      column = FALSE )
-
-# Fisher's test
-x1 <- table( d_fluidity_model$year_exp, d_fluidity_model$sexual_identity_fluidity )
-x1
-format( round( fisher.test( x1, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x2 <- table( d_fluidity_model$sex_exp, d_fluidity_model$sexual_identity_fluidity )
-x2
-format( round( fisher.test( x2 )$p.value, 3 ), nsmall = 3 )
-
-x3 <- table( d_fluidity_model$age_exp, d_fluidity_model$sexual_identity_fluidity )
-x3
-format( round( fisher.test( x3, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x4 <- table( d_fluidity_model$country_of_birth_exp, d_fluidity_model$sexual_identity_fluidity )
-x4
-format( round( fisher.test( x4, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x5 <- table( d_fluidity_model$education_exp, d_fluidity_model$sexual_identity_fluidity )
-x5
-format( round( fisher.test( x5, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x6 <- table( d_fluidity_model$income_exp, d_fluidity_model$sexual_identity_fluidity )
-x6
-format( round( fisher.test( x6, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x7 <- table( d_fluidity_model$marital_status_exp, d_fluidity_model$sexual_identity_fluidity )
-x7
-format( round( fisher.test( x7, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x8 <- table( d_fluidity_model$living_status_exp, d_fluidity_model$sexual_identity_fluidity )
-x8
-format( round( fisher.test( x8, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x9 <- table( d_fluidity_model$personal_support_exp, d_fluidity_model$sexual_identity_fluidity )
-x9
-format( round( fisher.test( x9, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x10 <- table( d_fluidity_model$sexual_identity_2010, d_fluidity_model$sexual_identity_fluidity )
-x10
-format( round( fisher.test( x10, simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
+n_miss( d_sexual_identity_fluidity ) # 0 missing
 ```
 
 ### 3. Make Fluidity Plots
@@ -724,93 +246,9 @@ for ( col in 1:3 ) {
 }
 
 m123_all_long <- to_lodes_form( m123_all, axes = 1:3, key = "year", value = "sexual_identity", id = "Cohort", diffuse = sexual_identity_2010 ) # convert to long format
-
-
-# change in sexual identity from 2010-2014 to 2021
-x123_all <- d_sexual_identity_fluidity %>%
-  count( sexual_identity_2010, sexual_identity_2014, sexual_identity_2021, name = "number" ) %>%
-  mutate( sexual_identity_2010_2014 = paste( sexual_identity_2010, 
-                                             sexual_identity_2014, 
-                                             sep = "_"
-                                             ) )
-
-x123_all$percent <- x123_all$number/sum( x123_all$number )
-
-ordered_levels <- x123_all %>%
-  group_by( sexual_identity_2010_2014 ) %>%
-  summarize( total = sum( number ) ) %>%
-  arrange( desc( total ) ) %>%
-  pull( sexual_identity_2010_2014 )
-
-ordered_levels <- as.character( ordered_levels[ ordered_levels != "Heterosexual_Heterosexual" & 
-                                                  ordered_levels != "Heterosexual_Other" ] )
-ordered_levels <- c( ordered_levels, "Heterosexual_Other", "Heterosexual_Heterosexual" )
-
-x123_all$sexual_identity_2010_2014 <- factor( x123_all$sexual_identity_2010_2014,
-                                              levels = ordered_levels )
-
-x123_all$sexual_identity_2021 <- factor( x123_all$sexual_identity_2021,
-                                         levels = c( "Homosexual", "Bisexual", "Other", "Heterosexual" )
-                                         )
-
-x123_all <- x123_all %>%
-  group_by( sexual_identity_2010_2014 ) %>%
-  mutate( total = sum( number ) ) %>%
-  mutate( percent_for_label = number / total ) %>%
-  ungroup()
-
-x123_all$label <- paste0( prettyNum( x123_all$number, big.mark = "," , preserve.width = "none" ), 
-                          " (", 
-                          sprintf( "%.1f", x123_all$percent_for_label*100 ),
-                          "%)" )
-
-x123_all_long <- to_lodes_form( x123_all, axes = c( 5, 3 ), key = "year", value = "sexual_identity", id = "Cohort", diffuse = sexual_identity_2010_2014 )
 ```
 
-##### 3.1.2. By sex
-```{r}
-m123_sex <- d_sexual_identity_fluidity %>%
-  count( sexual_identity_2010, sexual_identity_2014, sexual_identity_2021, sex_exp ) %>%
-  rename( number = n )
-
-m123_sex <- m123_sex %>%
-  group_by( sex_exp ) %>%
-  mutate( percent = number / sum( number ) ) %>%
-  ungroup()
-
-for ( col in 1:3 ) {
-  m123_sex[[col]] <- factor( m123_sex[[col]], levels = c( "Homosexual", "Bisexual", "Other", "Heterosexual" ) ) 
-}
-
-# among males
-m123_male <- m123_sex %>%
-  filter( sex_exp == "Male" ) %>%
-  group_by( sexual_identity_2010 ) %>%
-  mutate( percent_for_label = number / sum( number ) ) %>%
-  ungroup()
-
-m123_male$label <- paste0( prettyNum( m123_male$number, big.mark = "," , preserve.width = "none" ), " (", 
-                          sprintf( "%.1f", m123_male$percent_for_label*100 ),
-                          "%)" )
-
-m123_male_long <- to_lodes_form( m123_male, axes = 1:3, key = "year", value = "sexual_identity", id = "Cohort", diffuse = sexual_identity_2010 )
-
-
-# among females
-m123_female <- m123_sex %>%
-  filter( sex_exp == "Female" ) %>%
-  group_by( sexual_identity_2010 ) %>%
-  mutate( percent_for_label = number / sum( number ) ) %>%
-  ungroup()
-
-m123_female$label <- paste0( prettyNum( m123_female$number, big.mark = "," , preserve.width = "none" ), " (", 
-                          sprintf( "%.1f", m123_female$percent_for_label*100 ),
-                          "%)" )
-
-m123_female_long <- to_lodes_form( m123_female, axes = 1:3, key = "year", value = "sexual_identity", id = "Cohort", diffuse = sexual_identity_2010 )
-```
-
-##### 3.1.3. By age
+##### 3.1.2. By age
 ```{r}
 summary( d_sexual_identity_fluidity$age_exp )
 
@@ -884,7 +322,6 @@ m123_age_60_long <- to_lodes_form( m123_age_60, axes = 1:3, key = "year", value 
 
 #### 3.2. Plotting
 ##### 3.2.1. Among all participants
-###### 3.2.1.1. Change in sexual identity from 2010 to 2021
 ```{r}
 ggplot( m123_all_long,
         aes( x = year,
@@ -933,176 +370,7 @@ ggplot( m123_all_long,
                    )
 ```
 
-###### 3.2.1.2. Change in sexual identity from 2014 to 2021
-```{r}
-all_colors <- c( "#00BFC4", "#7CAE00", "#FFA500", "#F8766D", 
-                 "yellow2", "#0092FF", "#00FF00", "#4B0082", 
-                 "#0000FF", "#DEB887", "#00A86B", "#FF0000", 
-                 "#FF00DB", "#E6E6FA", "#87CEEB", "#C77CFF" )
-
-legend_labels <- setNames(
-  c( "Homo to Homo", "Bisexual to bisexual", "Hetero to bisexual", "Uncertain to other",
-     "Homo to Hetero", "Bisexual to Hetero", "Uncertain to Hetero", "Bisexual to other",
-     "Hetero to Homo", "Uncertain to bisexual", "Bisexual to Homo", "Homo to bisexual",
-     "Homo to other", "Uncertain to Homo", "Hetero to other", "Hetero to Hetero"),
-  ordered_levels )
-
-ggplot( x123_all_long,
-        aes( x = year,
-             stratum = sexual_identity, 
-             alluvium = Cohort,
-             y = percent ) ) +
-  
-  geom_alluvium( aes( fill = sexual_identity_2010_2014 ), curve_type = "cubic" ) +
-  geom_stratum( aes( fill = sexual_identity_2010_2014 ) ) +
-  
-  geom_text( data = subset( x123_all_long, year == "sexual_identity_2021"), 
-             stat = "stratum", 
-             aes( label = after_stat( stratum ) ), 
-             family = "Arial", 
-             size = 12 / .pt ) +
-  
-  scale_fill_manual( values = all_colors,
-                     breaks = ordered_levels,
-                     labels = legend_labels,
-                     na.value = NA ) +
-  
-  scale_x_discrete( limits = c( "sexual_identity_2010_2014", "sexual_identity_2021" ), labels = c( "2010–2014", "2021" ), expand = c( 0, 0 ) ) +
-  theme_classic() +
-  scale_y_break( c( 0.12, 0.9 ), scales = 10, space = 0.3 ) +
-  scale_y_continuous( labels = scales::percent, breaks = c( 0, 0.1, 0.9, 0.95, 1 ) ) +
-  labs( x = NULL, y = NULL) +
-  
-  theme( axis.text.x = element_text( family = "Arial", size = 11 ),
-         axis.text.y = element_text( family = "Arial", size = 11 ),
-         legend.title = element_blank(),
-         legend.text = element_text( family = "Arial", size = 10 ), 
-         legend.key = element_rect( colour = "white" ),
-         legend.position = "bottom",
-         axis.ticks.x.bottom = element_blank(),
-         axis.line.x.bottom = element_blank(),
-         axis.text.y.right = element_blank(),
-         axis.ticks.y.right = element_blank(),
-         axis.line.y.right = element_blank()
-  ) +
-  geom_text_repel( stat = "alluvium",
-                   aes( x = as.integer( year ) + 0.15,
-                        color = sexual_identity_2010_2014,
-                        label = ifelse( year == "sexual_identity_2021" & 
-                                          ( percent_for_label >= 0.05 & number >= 25 ), label, NA ) ),
-                   size = 4.5,
-                   family = "Arial",
-                   segment.linetype = 3,
-                   segment.size = 0.55,
-                   direction = "y",
-                   nudge_x = 0.45,
-                   box.padding = 0.5,
-                   point.padding = 0,
-                   show.legend = FALSE,
-                   seed = 123
-  ) +
-  scale_color_manual( values = all_colors,
-                      breaks = ordered_levels )
-```
-
-##### 3.2.2. By sex
-###### 3.2.2.1. Among males
-```{r}
-# 2010-2021
-ggplot( m123_male_long,
-        aes( x = year,
-             stratum = sexual_identity, 
-             alluvium = Cohort,
-             y = percent ) ) +
-  geom_alluvium( aes( fill = sexual_identity_2010 ), curve_type = "cubic" ) +
-  geom_stratum( aes( fill = sexual_identity_2010 ) ) +
-  geom_text( stat = "stratum", aes( label = after_stat( stratum ) ), family = "Arial", size = 12 / .pt ) +
-  scale_fill_manual( values = c( "#C77CFF", "#00BFC4", "#7CAE00", "#F8766D" ),
-                     breaks = c( "Heterosexual", "Homosexual", "Bisexual", "Other" ),
-                     na.value = NA ) +
-  scale_x_discrete( limits = c( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021" ), labels = c( "2010", "2014", "2021" ), expand = c( 0, 0 ) ) +
-  theme_classic() +
-  scale_y_break( c( 0.12, 0.9 ), scales = 10, space = 0.3 ) +
-  scale_y_continuous( labels = scales::percent, breaks = c( 0, 0.1, 0.9, 0.95, 1 ) ) +
-  labs( x = NULL, y = NULL) +
-  theme( axis.text.x = element_text( family = "Arial", size = 11 ),
-         axis.text.y = element_text( family = "Arial", size = 11 ),
-         legend.title = element_blank(),
-         legend.text = element_text( family = "Arial", size = 10 ), 
-         legend.key = element_rect( colour = "white" ),
-         legend.position = "bottom",
-         axis.ticks.x.bottom = element_blank(),
-         axis.line.x.bottom = element_blank(),
-         axis.text.y.right = element_blank(),
-         axis.ticks.y.right = element_blank(),
-         axis.line.y.right = element_blank()
-         ) +
-  geom_text_repel( stat = "alluvium",
-                   aes( x = as.integer( year ) + 0.15,
-                        color = factor( sexual_identity_2010, levels = c( "Other", "Bisexual", "Homosexual", "Heterosexual" ) ),
-                        label = ifelse( year == "sexual_identity_2021" & ( percent_for_label >= 0.1 | number >= 15 ), label, NA ) ),
-                   size = 4.5,
-                   family = "Arial",
-                   segment.linetype = 3,
-                   segment.size = 0.55,
-                   direction = "y",
-                   nudge_x = 0.45,
-                   box.padding = 0.5,
-                   point.padding = 0,
-                   show.legend = FALSE,
-                   seed = 123
-                   )
-```
-
-###### 3.2.2.2. Among females
-```{r}
-# 2010-2021
-ggplot( m123_female_long,
-        aes( x = year,
-             stratum = sexual_identity, 
-             alluvium = Cohort,
-             y = percent ) ) +
-  geom_alluvium( aes( fill = sexual_identity_2010 ), curve_type = "cubic" ) +
-  geom_stratum( aes( fill = sexual_identity_2010 ) ) +
-  geom_text( stat = "stratum", aes( label = after_stat( stratum ) ), family = "Arial", size = 12 / .pt ) +
-  scale_fill_manual( values = c( "#C77CFF", "#00BFC4", "#7CAE00", "#F8766D" ),
-                     breaks = c( "Heterosexual", "Homosexual", "Bisexual", "Other" ),
-                     na.value = NA ) +
-  scale_x_discrete( limits = c( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021" ), labels = c( "2010", "2014", "2021" ), expand = c( 0, 0 ) ) +
-  theme_classic() +
-  scale_y_break( c( 0.12, 0.9 ), scales = 10, space = 0.3 ) +
-  scale_y_continuous( labels = scales::percent, breaks = c( 0, 0.1, 0.9, 0.95, 1 ) ) +
-  labs( x = NULL, y = NULL) +
-  theme( axis.text.x = element_text( family = "Arial", size = 11 ),
-         axis.text.y = element_text( family = "Arial", size = 11 ),
-         legend.title = element_blank(),
-         legend.text = element_text( family = "Arial", size = 10 ), 
-         legend.key = element_rect( colour = "white" ),
-         legend.position = "bottom",
-         axis.ticks.x.bottom = element_blank(),
-         axis.line.x.bottom = element_blank(),
-         axis.text.y.right = element_blank(),
-         axis.ticks.y.right = element_blank(),
-         axis.line.y.right = element_blank()
-         ) +
-  geom_text_repel( stat = "alluvium",
-                   aes( x = as.integer( year ) + 0.15,
-                        color = factor( sexual_identity_2010, levels = c( "Other", "Bisexual", "Homosexual", "Heterosexual" ) ),
-                        label = ifelse( year == "sexual_identity_2021" & ( percent_for_label >= 0.1 | number >= 30 ), label, NA ) ),
-                   size = 4.5,
-                   family = "Arial",
-                   segment.linetype = 3,
-                   segment.size = 0.55,
-                   direction = "y",
-                   nudge_x = 0.45,
-                   box.padding = 0.5,
-                   point.padding = 0,
-                   show.legend = FALSE,
-                   seed = 123
-                   )
-```
-
-##### 3.2.3. By age
+##### 3.2.2. By age
 ```{r}
 # 18-29 years 
 ggplot( m123_age_18_long,

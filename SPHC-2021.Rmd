@@ -9,21 +9,14 @@ editor_options:
 
 ### 1. Load Packages
 ```{r}
-library(haven)
-library(tidyr)
-library(tidyverse)
-library(dplyr)
-library(finalfit)
-library(ggplot2)
 library(naniar)
-library(jomo)
-library(mitml)
-library(mitools)
+library(tidyverse)
 library(survey)
-library(svyVGAM)
 library(vcd)
 library(rcompanion)
-source("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/Helper_functions.R") # helper function
+library(mitml)
+library(mitools)
+source("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/Helper_functions.R") # helper function
 ```
 
 ### 2. Import and Prepare Data
@@ -94,14 +87,6 @@ table( d_2021$sex, useNA = "always" )
 # age
 summary( d_2021$F21alder )
 d_2021$age <- d_2021$F21alder
-d_2021$age_cat <- factor( ifelse( d_2021$age <= 29, "16-29", 
-                                  ifelse( d_2021$age >=30 & d_2021$age <= 44, "30-44",
-                                          ifelse( d_2021$age >= 45 & d_2021$age <= 59, "45-59", ">=60" ) ) ),
-                          levels = c( "16-29", "30-44", "45-59", ">=60" ) )
-table( d_2021$age_cat, useNA = "always" )
-
-# interaction term between age and sex
-d_2021$age_sex <- interaction( d_2021$age_cat, d_2021$sex )
 
 # generation
 d_2021$birth_year <- 2021 - d_2021$age
@@ -152,96 +137,6 @@ d_2021$marital_status <- factor( ifelse( d_2021$civil2021 == "G" | d_2021$civil2
                                  levels = c( "Never married", "Currently married", "Other" ) )
 table( d_2021$marital_status, useNA = "always" )
 
-# occupation
-table( d_2021$SSYK_kl, useNA = "always" )
-d_2021$occupation <- factor(
-  ifelse(
-    d_2021$SSYK_kl == "Yrken inom byggverksamhet och tillverkning" |
-      d_2021$SSYK_kl == "Yrken inom lantbruk, trädgård, skogsbruk och fiske" |
-      d_2021$SSYK_kl == "Yrken inom maskinell tillverkning och transport m.m.",
-    "Manual and field trades",
-    ifelse(
-      d_2021$SSYK_kl == "Service-, omsorgs- och försäljningsyrken" |
-        d_2021$SSYK_kl == "Yrken inom administration och kundtjänst" |
-        d_2021$SSYK_kl == "Yrken med krav på kortare utbildning eller introduktion",
-      "Service and support",
-      ifelse(
-        d_2021$SSYK_kl == "Yrken med krav på fördjupad högskolekompetens" |
-          d_2021$SSYK_kl == "Yrken med krav på högskolekompetens eller motsvarande" |
-          d_2021$SSYK_kl == "Chefsyrken",
-        "Expertise and leadership",
-        NA
-      )
-    )
-  ),
-  levels = c(
-    "Manual and field trades",
-    "Service and support",
-    "Expertise and leadership"
-  )
-)
-table( d_2021$occupation, useNA = "always" )
-
-
-##### demographic characteristics #####
-
-# among respondents (n = 23,066)
-# make characteristics table by sexual identity
-explanatory =  c( "sex", "age_cat", "country_of_birth", "education", "occupation", "income", "marital_status" )
-dependent = "sexual_identity_2021"
-
-d_2021_table <- d_2021 %>% 
-  summary_factorlist( dependent,
-                      explanatory, 
-                      na_include = TRUE,
-                      na_include_dependent = TRUE, 
-                      total_col = TRUE,
-                      add_col_totals = TRUE,
-                      column = FALSE )
-
-# Fisher's test
-x1 <- table( d_2021$sex, d_2021$sexual_identity_2021 )
-x1
-format( round( fisher.test( x1[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x1[, c( 1, 3 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x1[, c( 1, 4 ) ] )$p.value, 3 ), nsmall = 3 )
-
-x2 <- table( d_2021$age_cat, d_2021$sexual_identity_2021 )
-x2
-format( round( fisher.test( x2[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x2[, c( 1, 3 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x2[, c( 1, 4 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x3 <- table( d_2021$country_of_birth, d_2021$sexual_identity_2021 )
-x3
-format( round( fisher.test( x3[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x3[, c( 1, 3 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x3[, c( 1, 4 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x4 <- table( d_2021$education, d_2021$sexual_identity_2021 )
-x4
-format( round( fisher.test( x4[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x4[, c( 1, 3 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x4[, c( 1, 4 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x5 <- table( d_2021$income, d_2021$sexual_identity_2021 )
-x5
-format( round( fisher.test( x5[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x5[, c( 1, 3 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x5[, c( 1, 4 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x6 <- table( d_2021$marital_status, d_2021$sexual_identity_2021 )
-x6
-format( round( fisher.test( x6[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x6[, c( 1, 3 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x6[, c( 1, 4 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
-x7 <- table( d_2021$occupation, d_2021$sexual_identity_2021 )
-x7
-format( round( fisher.test( x7[, c( 1:2 ) ] )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x7[, c( 1, 3 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-format( round( fisher.test( x7[, c( 1, 4 ) ], simulate.p.value = TRUE )$p.value, 3 ), nsmall = 3 )
-
 
 ##### design weights #####
 
@@ -250,6 +145,7 @@ d_2021$design_weight <- d_2021$F21dvikt
 
 
 ##### calibrated weights #####
+
 d_2021$calibrated_weight <- d_2021$F21kalvikt
 
 
@@ -277,31 +173,6 @@ itemresponse_prob <- d_2021 %>%
 d_2021 <- d_2021 %>% 
   left_join( itemresponse_prob, by = "sampling_strata_region" ) %>% 
   mutate( itemresponse_prob = ifelse( is.na( sexual_identity_2021 ), 0, itemresponse_prob ) )
-
-
-##### summary of stratified sampling #####
-
-sampling_frame_2021 <- as.data.frame( d_2021 %>% 
-                                   group_by( sampling_strata_region ) %>% 
-                                   reframe( no.of.population = unique( no.of.population ), 
-                                            sample_size = unique( no.of.population/design_weight ),
-                                            unitresponse = n(),
-                                            itemresponse = sum( itemresponse_prob != 0 ) ) )
-
-sampling_frame_2021$unitresponse_rate <- sampling_frame_2021$unitresponse/sampling_frame_2021$sample_size
-sampling_frame_2021$itemresponse_rate <- sampling_frame_2021$itemresponse/sampling_frame_2021$unitresponse
-sampling_frame_2021$overallresponse_rate <- sampling_frame_2021$itemresponse/sampling_frame_2021$sample_size
-
-sampling_frame_2021$unitresponse_label <- paste0( sampling_frame_2021$unitresponse, " (", 
-                                             sprintf( "%.1f", sampling_frame_2021$unitresponse_rate*100 ), "%)" )
-sampling_frame_2021$overallresponse_label <- paste0( sampling_frame_2021$itemresponse, " (", 
-                                                sprintf( "%.1f", sampling_frame_2021$overallresponse_rate*100 ), "%)" )
-
-round( sum( sampling_frame_2021$unitresponse )/( sum( sampling_frame_2021$sample_size ) ), 3 ) # overall unit response rate
-round( sum( sampling_frame_2021$itemresponse )/( sum( sampling_frame_2021$unitresponse ) ), 3 ) # overall item response rate
-round( sum( sampling_frame_2021$itemresponse )/( sum( sampling_frame_2021$sample_size ) ), 3 ) # overall response rate
-
-writexl::write_xlsx( sampling_frame_2021, "sampling_frame_2021.xlsx" )
 
 
 ##### replicating non-respondent rows for sampling design #####
@@ -444,7 +315,7 @@ ggplot( d_2021_incomplete %>%
 
 summary( d_2021_incomplete )
 sapply( d_2021_incomplete, class ) # all continuous variables are numeric, and all categorical variables are factor
-save( d_2021_incomplete, file = "d_2021_incomplete.RData" )
+# save( d_2021_incomplete, file = "/Volumes/LGBT Project data/Multiple Imputation/d_2021_incomplete.RData" )
 ```
 
 #### 4.2. Visualize missing pattern
@@ -487,7 +358,7 @@ imp_preliminary_2021 <- jomoImpute( data = d_2021_incomplete,
                                     seed = 12345
                                     ) # took around 30 minutes
 
-save( imp_preliminary_2021, file = "imp_preliminary_2021.RData" )
+# save( imp_preliminary_2021, file = "/Volumes/LGBT Project data/Multiple Imputation/imp_preliminary_2021.RData" )
 summary( imp_preliminary_2021 ) # summarize model and display convergence statistics
 plot( imp_preliminary_2021, trace = "all", print = "beta" ) # check trace and autocorrelation plots
 
@@ -502,7 +373,7 @@ imp_final_2021 <- jomoImpute( data = d_2021_incomplete,
                               seed = 12345
                               ) # took around 1 hour and a half
 
-save( imp_final_2021, file = "imp_final_2021.RData" )
+# save( imp_final_2021, file = "/Volumes/LGBT Project data/Multiple Imputation/imp_final_2021.RData" )
 summary( imp_final_2021 )
 plot( imp_final_2021, trace = "all", print = "beta" )
 ```
@@ -575,18 +446,9 @@ summary( implist_2021[[1]] )
 implist_2021_transformed <- lapply( implist_2021, function( df ) {
   within( df, {
     
-    # age
-    age_exp <- factor( 
-      case_when( age <= 29 ~ "16-29",
-                 age >= 30 & age <= 44 ~ "30-44",
-                 age >= 45 & age <= 59 ~ "45-59",
-                 age >= 60 ~ ">=60" ),
-      levels = c( "45-59", "16-29", "30-44", ">=60" ) )
-    age_conf <- age
-    
     # age group
     age_group <- cut( age,
-                      breaks = seq( 15, 79, by = 2 ),
+                      breaks = c( seq( 15, 79, by = 2 ), 100 ),
                       include.lowest = TRUE,
                       right = TRUE )
     
@@ -602,35 +464,6 @@ implist_2021_transformed <- lapply( implist_2021, function( df ) {
         birth_year >= 1901 & birth_year <= 1927 ~ "Greatest Generation (1901–1927)" ),
       levels = c( "Generation Z (1997–2012)", "Millennials (1981–1996)", "Generation X (1965–1980)", "Baby Boomers (1946–1964)", "Silent Generation (1928–1945)", "Greatest Generation (1901–1927)" ) 
     )
-    
-    # sex
-    sex_exp <- sex
-    sex_conf <- sex
-    
-    # interaction term between age and sex
-    age_sex <- interaction( age_exp, sex_exp )
-    
-    # country of birth
-    country_of_birth_exp <- country_of_birth
-    country_of_birth_conf <- country_of_birth
-    
-    # education
-    education_exp <- relevel( education, ref = ">=13 years"  )
-    education_conf <- education
-    
-    # disposable income
-    income <- ifelse( income < 0, 0, income )
-    income_exp <- factor( 
-      case_when( income <= 2500 ~ "<=2,500",
-                 income > 2500 & income <= 3500 ~ "(2,500, 3,500]",
-                 income > 3500 & income <= 4500 ~ "(3,500, 4,500]", 
-                 income > 4500 ~ ">4,500" ),
-      levels = c( ">4,500", "<=2,500", "(2,500, 3,500]", "(3,500, 4,500]" ) )
-    income_conf <- income
-    
-    # marital status
-    marital_status_exp <- relevel( marital_status, ref = "Currently married" )
-    marital_status_conf <- marital_status
 
     # sexual identity in 2021
     levels( sexual_identity_2021 )[ levels( sexual_identity_2021 ) == "None of the above" ] <- "Other"
@@ -639,18 +472,6 @@ implist_2021_transformed <- lapply( implist_2021, function( df ) {
                  sexual_identity_2021 == "Heterosexual" ~ "Heterosexual",
                  sexual_identity_2021 == "Other" ~ "Other" ),
       levels = c( "Heterosexual", "LGB", "Other" ) )
-    
-    # sexual minority
-    sexual_minority <- ifelse( sexual_identity_2021 == "Heterosexual", 0, 1 )
-    
-    # homosexual
-    homosexual <- ifelse( sexual_identity_2021 == "Homosexual", 1, 0 )
-    
-    # bisexual
-    bisexual <- ifelse( sexual_identity_2021 == "Bisexual", 1, 0 )
-    
-    # other
-    other <- ifelse( sexual_identity_2021 == "Other", 1, 0 )
   } )
 } )
 
@@ -674,14 +495,7 @@ survey_design_imp <- svydesign( ids = ~ 1,
 #### 5.1. Complete-case analysis
 ##### 5.1.1. Define survey design
 ```{r}
-# prepare dataset
 d_2021_complete_cc <- d_2021_complete
-
-d_2021_complete_cc$country_of_birth <- factor( 
-  ifelse( d_2021_complete_cc$country_of_birth == "Sweden", "Sweden",
-          ifelse( d_2021_complete_cc$country_of_birth == "Europe", "Europe", "Outside Europe" ) ),
-  levels = c( "Sweden", "Europe", "Outside Europe" )
-  )
 
 # create survey design
 survey_design_cc <- svydesign( ids = ~ 1, 
@@ -690,154 +504,22 @@ survey_design_cc <- svydesign( ids = ~ 1,
                                fpc = ~ no.of.population,
                                data = d_2021_complete_cc )
 
-categories <- c( "Heterosexual", "Homosexual", "Bisexual", "None of the above" )
+categories <- c( "Homosexual", "Bisexual" )
 
 # the following analyses assume MCAR
 ```
 
-##### 5.1.2. By sex
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_sex <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                        by = ~ sex,
-                        design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( sex ) ),
-                        FUN = svyciprop,
-                        vartype = "ci",
-                        method = "beta" )
-  
-  colnames( prop_cc_sex ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_sex
-}
-
-prop_cc_sex <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_sex <- left_join( prop_cc_sex,
-                          d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                             !is.na( d_2021_complete_cc$sex ), ] %>% 
-                            group_by( subgroup = sex ) %>% 
-                            summarise( sample_size_2021 = n() ),
-                          by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.3. By age group
-###### 5.1.3.1. Calculate proportion by pre-specified age cut-off
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_age <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                        by = ~ age_cat,
-                        design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( age_cat ) ),
-                        FUN = svyciprop,
-                        vartype = "ci",
-                        method = "beta" )
-  
-  colnames( prop_cc_age ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_age
-}
-
-prop_cc_age <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_age <- left_join( prop_cc_age,
-                          d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                             !is.na( d_2021_complete_cc$age_cat ), ] %>% 
-                            group_by( subgroup = age_cat ) %>% 
-                            summarise( sample_size_2021 = n() ),
-                          by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-###### 5.1.3.2. Calculate proportion and proportion ratio by varying age cut-offs
-```{r}
-d_2021_iteration_age <- d_2021_complete
-
-min_age <- min( d_2021_iteration_age$age, na.rm = TRUE )
-
-results_df <- data.frame()
-
-for ( cut_off in ( min_age ):100 ) {
-  d_2021_iteration_age$age_iteration <- ifelse( d_2021_iteration_age$age <= cut_off, "young", "old" )
-  
-  survey_design_iteration_age <- svydesign( ids = ~ 1, 
-                                            strata = ~ sampling_strata_region,
-                                            weights = ~ design_weight,
-                                            fpc = ~ no.of.population,
-                                            data = d_2021_iteration_age )
-  
-  list_of_df <- list()
-  
-  for ( cat in categories ) {
-    prop_cc_age_iteration <- svyby(
-      formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-      by = ~ age_iteration,
-      design = subset( survey_design_iteration_age, !is.na( sexual_identity_2021 ) & !is.na( age ) ),
-      FUN = svyciprop,
-      method = "beta" )
-    
-    colnames( prop_cc_age_iteration ) <- c( "subgroup", 
-                                            paste0( cat, "_point_estimate_2021" ), 
-                                            paste0( cat, "_se_2021" ) )
-    
-    list_of_df[[cat]] <- prop_cc_age_iteration
-  }
-  
-  prop_cc_age_iteration_merged <- Reduce( function( df1, df2 ) { 
-    merge( df1, df2, by = "subgroup" ) 
-    }, 
-    list_of_df
-    )
-  
-  prop_cc_age_iteration_merged$cut_off <- cut_off
-  
-  results_df <- rbind( results_df, prop_cc_age_iteration_merged )
-  }
-
-results_wide <- results_df %>%
-  select( -ends_with( "_se_2021" ) ) %>%
-  pivot_wider( names_from = subgroup, 
-               values_from = c( Heterosexual_point_estimate_2021, 
-                                Homosexual_point_estimate_2021, 
-                                Bisexual_point_estimate_2021, 
-                                `None of the above_point_estimate_2021` ) 
-               )
-
-colnames( results_wide ) <- gsub( "_point_estimate_2021", "", colnames( results_wide ) )
-
-results_wide$Heterosexual_pr_2021 <- results_wide$Heterosexual_young/results_wide$Heterosexual_old
-results_wide$Homosexual_pr_2021 <- results_wide$Homosexual_young/results_wide$Homosexual_old
-results_wide$Bisexual_pr_2021 <- results_wide$Bisexual_young/results_wide$Bisexual_old
-results_wide$`None of the above_pr_2021` <- results_wide$`None of the above_young`/results_wide$`None of the above_old`
-
-results_wide$Heterosexual_pr_2021[ is.infinite( results_wide$Heterosexual_pr_2021 ) ] <- NA
-results_wide$Homosexual_pr_2021[ is.infinite( results_wide$Homosexual_pr_2021 ) ] <- NA
-results_wide$Bisexual_pr_2021[ is.infinite( results_wide$Bisexual_pr_2021 ) ] <- NA
-results_wide$`None of the above_pr_2021`[ is.infinite( results_wide$`None of the above_pr_2021` ) ] <- NA
-
-writexl::write_xlsx( results_wide, "prop_cc_age_iteration_2021.xlsx" )
-```
-
-###### 5.1.3.3. Calculate proportion by generation
+##### 5.1.2. Calculate proportion by generation
 ```{r}
 list_of_df <- list()
 
 for ( cat in categories ) {
   prop_cc_generation <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                        by = ~ generation,
-                        design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( generation ) ),
-                        FUN = svyciprop,
-                        vartype = "ci",
-                        method = "beta" )
+                               by = ~ generation,
+                               design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( generation ) ),
+                               FUN = svyciprop,
+                               vartype = "ci",
+                               method = "beta" )
   
   colnames( prop_cc_generation ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
   
@@ -850,15 +532,15 @@ prop_cc_generation <- Reduce( function( df1, df2 ) {
 list_of_df )
 
 prop_cc_generation <- left_join( prop_cc_generation,
-                          d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                !is.na( d_2021_complete_cc$generation ), ] %>% 
-                            group_by( subgroup = generation ) %>% 
-                            summarise( sample_size_2021 = n() ),
-                          by = "subgroup" ) %>%
+                                 d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
+                                                       !is.na( d_2021_complete_cc$generation ), ] %>%
+                                   group_by( subgroup = generation ) %>%
+                                   summarise( sample_size_2021 = n() ),
+                                 by = "subgroup" ) %>%
   mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
 ```
 
-###### 5.1.3.4. Calculate proportion by age groups
+##### 5.1.3. Calculate proportion by age groups
 ```{r}
 d_2021_iteration_age_group <- d_2021_complete
 
@@ -873,9 +555,6 @@ survey_design_iteration_age_group <- svydesign( ids = ~ 1,
                                                 weights = ~ design_weight,
                                                 fpc = ~ no.of.population,
                                                 data = d_2021_iteration_age_group )
-
-categories <- c( "Heterosexual", "Homosexual", "Bisexual", "None of the above" )
-
 
 list_of_df <- list()
 
@@ -901,193 +580,7 @@ list_of_df )
 writexl::write_xlsx( prop_cc_age_group, "prop_cc_age_group_2021.xlsx" )
 ```
 
-##### 5.1.4. By sex*age group
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_age_sex <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                            by = ~ age_sex,
-                            design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( age_sex ) ),
-                            FUN = svyciprop,
-                            vartype = "ci",
-                            method = "beta" )
-  
-  colnames( prop_cc_age_sex ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_age_sex
-}
-
-prop_cc_age_sex <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_age_sex <- left_join( prop_cc_age_sex,
-                              d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                 !is.na( d_2021_complete_cc$age_sex ), ] %>% 
-                                group_by( subgroup = age_sex ) %>% 
-                                summarise( sample_size_2021 = n() ),
-                              by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.5. By education
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_education <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                              by = ~ education,
-                              design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( education ) ),
-                              FUN = svyciprop,
-                              vartype = "ci",
-                              method = "beta" )
-  
-  colnames( prop_cc_education ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_education
-}
-
-prop_cc_education <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_education <- left_join( prop_cc_education,
-                                d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                   !is.na( d_2021_complete_cc$education ), ] %>% 
-                                  group_by( subgroup = education ) %>% 
-                                  summarise( sample_size_2021 = n() ),
-                                by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.6. By occupation
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_occupation <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                               by = ~ occupation,
-                               design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( occupation ) ),
-                               FUN = svyciprop,
-                               vartype = "ci",
-                               method = "beta" )
-  
-  colnames( prop_cc_occupation ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_occupation
-  }
-
-prop_cc_occupation <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-  }, 
-  list_of_df )
-
-prop_cc_occupation <- left_join( prop_cc_occupation,
-                                     d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                           !is.na( d_2021_complete_cc$occupation ), ] %>% 
-                                       group_by( subgroup = occupation ) %>% 
-                                       summarise( sample_size_2021 = n() ),
-                                     by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.7. By income
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_income <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                           by = ~ income,
-                           design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( income ) ),
-                           FUN = svyciprop,
-                           vartype = "ci",
-                           method = "beta" )
-  
-  colnames( prop_cc_income ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_income
-}
-
-prop_cc_income <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_income <- left_join( prop_cc_income,
-                             d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                   !is.na( d_2021_complete_cc$income ), ] %>% 
-                               group_by( subgroup = income ) %>% 
-                               summarise( sample_size_2021 = n() ),
-                             by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.8. By country of birth
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_country_of_birth <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                                     by = ~ country_of_birth,
-                                     design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( country_of_birth ) ),
-                                     FUN = svyciprop,
-                                     vartype = "ci",
-                                     method = "beta" )
-  
-  colnames( prop_cc_country_of_birth ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_country_of_birth
-}
-
-prop_cc_country_of_birth <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_country_of_birth <- left_join( prop_cc_country_of_birth,
-                                       d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                   !is.na( d_2021_complete_cc$country_of_birth ), ] %>% 
-                                         group_by( subgroup = country_of_birth ) %>% 
-                                         summarise( sample_size_2021 = n() ),
-                                       by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.9. By marital status
-```{r}
-list_of_df <- list()
-
-for ( cat in categories ) {
-  prop_cc_marital_status <- svyby( formula = as.formula( paste0( "~ I( sexual_identity_2021 == '", cat, "' )" ) ),
-                                   by = ~ marital_status,
-                                   design = subset( survey_design_cc, !is.na( sexual_identity_2021 ) & !is.na( marital_status ) ),
-                                   FUN = svyciprop,
-                                   vartype = "ci",
-                                   method = "beta" )
-  
-  colnames( prop_cc_marital_status ) <- c( "subgroup", paste0( cat, "_point_estimate_2021" ), paste0( cat, "_lower_ci_2021" ), paste0( cat, "_upper_ci_2021" ) )
-  
-  list_of_df[[cat]] <- prop_cc_marital_status
-}
-
-prop_cc_marital_status <- Reduce( function( df1, df2 ) { 
-  merge( df1, df2, by = "subgroup" )
-}, 
-list_of_df )
-
-prop_cc_marital_status <- left_join( prop_cc_marital_status,
-                                     d_2021_complete_cc[ !is.na( d_2021_complete_cc$sexual_identity_2021 ) &
-                                                   !is.na( d_2021_complete_cc$marital_status ), ] %>% 
-                                       group_by( subgroup = marital_status ) %>% 
-                                       summarise( sample_size_2021 = n() ),
-                                     by = "subgroup" ) %>%
-  mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
-```
-
-##### 5.1.10. Overall proportions of sexual identities in Stockholm County
+##### 5.1.4. Overall proportions of sexual identities in Stockholm County
 ```{r}
 list_of_df <- list()
 
@@ -1119,19 +612,9 @@ prop_cc_overall <- bind_cols( prop_cc_overall,
   mutate( sample_size_2021 = prettyNum( sample_size_2021, big.mark = ",", preserve.width = "none" ) )
 ```
 
-##### 5.1.11. Merge datasets
+##### 5.1.5. Merge datasets
 ```{r}
-prop_cc_summary_2021 <- rbind( prop_cc_sex, 
-                               prop_cc_age,
-                               prop_cc_generation,
-                               prop_cc_age_sex,
-                               prop_cc_education,
-                               prop_cc_occupation,
-                               prop_cc_income, 
-                               prop_cc_country_of_birth, 
-                               prop_cc_marital_status,
-                               prop_cc_overall 
-                               )
+prop_cc_summary_2021 <- rbind( prop_cc_generation, prop_cc_overall )
 
 writexl::write_xlsx( prop_cc_summary_2021, "prop_cc_summary_2021.xlsx" )
 ```
@@ -1139,8 +622,8 @@ writexl::write_xlsx( prop_cc_summary_2021, "prop_cc_summary_2021.xlsx" )
 #### 5.2. Survey analyses of imputed datasets
 ```{r}
 # among demographic subgroups
-sexual_identities <- c( "Heterosexual", "Homosexual", "Bisexual", "Other" )
-demographic_vars <- c( "age_exp", "generation", "sex_exp", "age_sex", "country_of_birth_exp", "education_exp", "income_exp", "marital_status_exp" )
+sexual_identities <- c( "Homosexual", "Bisexual" )
+demographic_vars <- c( "generation" )
 
 prop_imp_list_subgroup_2021 <- list()
 
@@ -1166,13 +649,6 @@ prop_imp_overall_2021 <- calc_prop_imp_overall( design = survey_design_imp,
 prop_imp_summary_2021 <- rbind( prop_imp_summary_subgroup_2021, prop_imp_overall_2021 )
 writexl::write_xlsx( prop_imp_summary_2021, "prop_imp_summary_2021.xlsx" )
 
-
-# calculate proportion by varying age cut-offs
-min_age <- min( d_2021$age )
-results_summary <- data.frame()
-prop_imp_age_iteration_2021 <- calc_prop_imp_iteration_age( min_age, sexual_identities, 2021 )
-writexl::write_xlsx( prop_imp_age_iteration_2021, "prop_imp_age_iteration_2021.xlsx" )
-
 # among age group
 prop_imp_age_group <- calc_prop_imp_subgroup( implist = implist_2021_transformed,
                                               design = survey_design_imp,
@@ -1180,13 +656,6 @@ prop_imp_age_group <- calc_prop_imp_subgroup( implist = implist_2021_transformed
                                               demog_var = "age_group",
                                               year = 2021 )
 writexl::write_xlsx( prop_imp_age_group, "prop_imp_age_group_2021.xlsx" )
-
-# calculate overall proportion of LGB identity
-prop_lgb <- summary( MIcombine( with( survey_design_imp,
-                                      svyciprop( formula = ~ I( sexual_identity_lgb == "LGB" ), method = "beta" ) ) ) )
-prop_lgb <- rownames_to_column( prop_lgb[ , c( "results", "(lower", "upper)" ) ], var = "subgroup" )
-round( prop_lgb[ -1 ] * 100, 1 ) # proportion of LGB identity
-round( sum( d_2021$design_weight_unit_nonresponse ) * prop_lgb[ 1, 2 ], 0 ) # number of LGB population
 
 # calculate overall proportion of LGB identity by generation
 prop_lgb_generation <- summary( MIcombine( with( survey_design_imp,

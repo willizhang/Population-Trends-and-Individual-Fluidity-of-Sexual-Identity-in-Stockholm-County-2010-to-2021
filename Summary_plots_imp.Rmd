@@ -19,13 +19,13 @@ library(ggplot2)
 #### 2.1. By generation
 ```{r}
 # datasets for proportion of sexual identity
-prop_imp_summary_2010_generation <- read_excel("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_summary_2010.xlsx")
-prop_imp_summary_2014_generation <- read_excel("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_summary_2014.xlsx")
-prop_imp_summary_2021_generation <- read_excel("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_summary_2021.xlsx")
+prop_imp_summary_2010_generation <- read_excel("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_summary_2010.xlsx")
+prop_imp_summary_2014_generation <- read_excel("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_summary_2014.xlsx")
+prop_imp_summary_2021_generation <- read_excel("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_summary_2021.xlsx")
 
-prop_imp_summary_2010_generation <- prop_imp_summary_2010_generation %>% slice( 5:9 )
-prop_imp_summary_2014_generation <- prop_imp_summary_2014_generation %>% slice( 5:10 )
-prop_imp_summary_2021_generation <- prop_imp_summary_2021_generation %>% slice( 5:10 )
+prop_imp_summary_2010_generation <- prop_imp_summary_2010_generation %>% slice( 1:5 )
+prop_imp_summary_2014_generation <- prop_imp_summary_2014_generation %>% slice( 1:6 )
+prop_imp_summary_2021_generation <- prop_imp_summary_2021_generation %>% slice( 1:6 )
 
 # merge datasets
 prop_imp_summary_generation <- prop_imp_summary_2010_generation %>%
@@ -42,16 +42,13 @@ long_data_generation <- prop_imp_summary_generation %>%
     ) %>%
   separate( year_identity, into = c( "identity", "year" ), sep = "_point_estimate_" )
 
-long_data_generation <- long_data_generation %>%
-  mutate( identity = factor( identity, levels = c( "Heterosexual", "Bisexual", "Homosexual", "Other" ) ) )
-
 long_data_generation_filtered <- long_data_generation %>%
-  filter( identity %in% c( "Bisexual", "Homosexual" ) ) %>%
+  filter( identity %in% c( "Bisexual" ) ) %>%
   drop_na()
 
 # plot
 ggplot( long_data_generation_filtered, 
-        aes( x = year, y = proportion, color = subgroup, linetype = identity, group = interaction( subgroup, identity ) ) ) +
+        aes( x = year, y = proportion, color = subgroup, group = subgroup ) ) +
   
   geom_line( linewidth = 0.5 ) + 
   
@@ -69,14 +66,9 @@ ggplot( long_data_generation_filtered,
                       labels = c( "Generation Z (1997–2012)ᵃ    ", "Generation X (1965–1980)    ", "Silent Generation (1928–1945)   ", "Millennials (1981–1996)", "Baby Boomers (1946–1964)", "Greatest Generation (1901–1927)" ),
                       guide = guide_legend( nrow = 3 ) ) +
   
-  scale_linetype_manual( values = c( "solid", "dotdash" ),
-                         breaks = c( "Bisexual", "Homosexual" ),
-                         labels = c( "Bisexual Identity", "Homosexual Identity" ),
-                         guide = "none" ) + 
-  
   labs(
     x = "Survey Year",
-    y = "Proportion" ) +
+    y = "Proportion of Bisexual Identity" ) +
   
   theme_classic() +
   
@@ -92,14 +84,14 @@ ggplot( long_data_generation_filtered,
 #### 2.2. By age group
 ##### 2.2.1. Prepare dataset for plotting
 ```{r}
-prop_imp_age_group_2010 <- read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_age_group_2010.xlsx") %>%
-  select( "subgroup", "Heterosexual_point_estimate_2010", "Homosexual_point_estimate_2010", "Bisexual_point_estimate_2010", "Other_point_estimate_2010" )
+prop_imp_age_group_2010 <- read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_age_group_2010.xlsx") %>%
+  select( "subgroup", "Bisexual_point_estimate_2010" )
 
-prop_imp_age_group_2014 <- read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_age_group_2014.xlsx") %>%
-  select( "subgroup", "Heterosexual_point_estimate_2014", "Homosexual_point_estimate_2014", "Bisexual_point_estimate_2014", "Other_point_estimate_2014" )
+prop_imp_age_group_2014 <- read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_age_group_2014.xlsx") %>%
+  select( "subgroup", "Bisexual_point_estimate_2014" )
 
-prop_imp_age_group_2021 <- read_xlsx("//Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Postdoc Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_age_group_2021.xlsx") %>%
-  select( "subgroup", "Heterosexual_point_estimate_2021", "Homosexual_point_estimate_2021", "Bisexual_point_estimate_2021", "Other_point_estimate_2021" )
+prop_imp_age_group_2021 <- read_xlsx("/Users/guoqiang.zhang/Library/CloudStorage/OneDrive-KarolinskaInstitutet/Karolinska Institutet/Research Projects/Population Trends and Individual Fluidity of Sexual Identity in Stockholm County/Research Letter/Population_Trends_and_Individual_Fluidity_of_Sexual_Identity_in_Stockholm_County_2010_to_2021/prop_imp_age_group_2021.xlsx") %>%
+  select( "subgroup", "Bisexual_point_estimate_2021" )
 
 prop_imp_age_group_2010$subgroup[ prop_imp_age_group_2010$subgroup == "[17,19]" ] <- "(17,19]"
 prop_imp_age_group_2014$subgroup[ prop_imp_age_group_2014$subgroup == "[15,17]" ] <- "[16,17]"
@@ -121,7 +113,9 @@ new_subgroup_label <- function( label ) {
 
 prop_imp_age_group_merged$new_subgroup <- sapply( prop_imp_age_group_merged$subgroup, new_subgroup_label )
 
-prop_imp_age_group_merged <- prop_imp_age_group_merged %>% relocate( new_subgroup, .after = subgroup )
+prop_imp_age_group_merged <- prop_imp_age_group_merged %>% 
+  filter( !( new_subgroup %in% c( "[80,99]", "[80,100]", "[80,104]" ) ) ) %>%
+  relocate( new_subgroup, .after = subgroup )
 
 age_group_order <- c( "[16,17]", "[18,19]", "[20,21]", "[22,23]", "[24,25]", "[26,27]", "[28,29]", "[30,31]", 
                       "[32,33]", "[34,35]", "[36,37]", "[38,39]", "[40,41]", "[42,43]", "[44,45]", "[46,47]", 
@@ -137,24 +131,19 @@ long_data_age_group <- prop_imp_age_group_merged %>%
     names_pattern = "([A-Za-z]+)_(\\w+)_(\\d+)", 
     values_to = "Value" 
   )
-
-long_data_age_group_filtered <- long_data_age_group %>% filter( Sexuality %in% c( "Bisexual", "Homosexual" ) )
 ```
 
 ##### 2.2.2. Plotting
 ```{r}
-ggplot( long_data_age_group_filtered, 
-        aes( x = new_subgroup, y = Value, color = Sexuality, linetype = Year,  group = interaction( Sexuality, Year ) ) ) +
+ggplot( long_data_age_group, 
+        aes( x = new_subgroup, y = Value, color = Year,  group = Year ) ) +
   
   geom_line( linewidth = 0.5 ) +
   
-  scale_linetype_manual( values = c( "2010" = "dotdash", "2014" = "dashed", "2021" = "solid" ),
-                         labels = c( "2010", "2014", "2021" ) 
-                         ) +
-  
-  scale_color_manual( values = c( "Bisexual" = "#F8766D", "Homosexual" = "#00BFC4" ),
-                      labels = c( "Bisexual Identity", "Homosexual Identity" ),
-                      guide = "none"
+  scale_color_manual( values = c( "#00BFC4", "#C77CFF", "#F8766D" ),
+                      breaks = c( "2010", "2014", "2021" ),
+                      labels = c( "SPHC-B 2010", "SPHC-B 2014", "SPHC-B 2021" ),
+                      guide = guide_legend( nrow = 1 )
                       ) + 
   
   scale_y_continuous( labels = scales::percent, 
@@ -163,8 +152,7 @@ ggplot( long_data_age_group_filtered,
                       ) +
   
   labs( x = "Age Group (Year)ᵃ", 
-        y = "Proportion",
-        linetype = "Survey Year"
+        y = "Proportion of Bisexual Identity"
         ) +
   
   theme_classic() +
@@ -173,7 +161,7 @@ ggplot( long_data_age_group_filtered,
          axis.title.y = element_text( family = "Arial", size = 11 ),
          axis.title.x = element_text( family = "Arial", size = 11 ),
          axis.text.x = element_text( family = "Arial", size = 11, angle = 45, vjust = 0.5, hjust = 0.5 ),
-         legend.title = element_text( family = "Arial", size = 10 ),
+         legend.title = element_blank(),
          legend.text = element_text( family = "Arial", size = 10 ),
          legend.position = "bottom"
          )
