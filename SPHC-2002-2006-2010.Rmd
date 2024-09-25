@@ -218,7 +218,7 @@ d_2002_2006_2010_follow_up$sexual_identity_fluidity <- ifelse(
 d_sexual_identity_fluidity <- d_2002_2006_2010_follow_up[ 
   !is.na( d_2002_2006_2010_follow_up$sexual_identity_2010 ) &
     !is.na( d_2002_2006_2010_follow_up$sexual_identity_2014 ) &
-    !is.na( d_2002_2006_2010_follow_up$sexual_identity_2021 ), c( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "sex_exp" ) ]
+    !is.na( d_2002_2006_2010_follow_up$sexual_identity_2021 ), c( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021", "age_exp", "sex_exp", "year" ) ]
 nrow( d_sexual_identity_fluidity ) # 34,815 provided data on sexual identity in 2010-2021
 n_miss( d_sexual_identity_fluidity ) # 0 missing
 ```
