@@ -323,6 +323,7 @@ m123_age_60_long <- to_lodes_form( m123_age_60, axes = 1:3, key = "year", value 
 #### 3.2. Plotting
 ##### 3.2.1. Among all participants
 ```{r}
+# version 1
 ggplot( m123_all_long,
         aes( x = year,
              stratum = sexual_identity, 
@@ -368,6 +369,36 @@ ggplot( m123_all_long,
                    show.legend = FALSE,
                    seed = 123
                    )
+```
+
+```{r}
+# version 2
+ggplot( m123_all_long,
+        aes( x = year,
+             stratum = sexual_identity, 
+             alluvium = Cohort,
+             y = percent ) ) +
+  geom_alluvium( aes( fill = sexual_identity_2010 ), curve_type = "cubic" ) +
+  geom_stratum( aes( fill = sexual_identity_2010 ) ) +
+  geom_text( stat = "stratum", aes( label = after_stat( stratum ) ), family = "Arial", size = 12 / .pt ) +
+  scale_fill_manual( values = c( "#C77CFF", "#00BFC4", "#7CAE00", "#F8766D" ),
+                     breaks = c( "Heterosexual", "Homosexual", "Bisexual", "Other" ),
+                     na.value = NA ) +
+  scale_x_discrete( limits = c( "sexual_identity_2010", "sexual_identity_2014", "sexual_identity_2021" ), labels = c( "2010", "2014", "2021" ), expand = c( 0, 0 ) ) +
+  expand_limits( x = 3.2 ) +
+  theme_classic() +
+  scale_y_continuous( labels = scales::percent, breaks = seq( 0, 1, by = 0.1 ) ) +
+  labs( x = NULL, y = NULL) +
+  theme( axis.text.x = element_text( family = "Arial", size = 11 ),
+         axis.text.y = element_text( family = "Arial", size = 11 ),
+         legend.title = element_blank(),
+         legend.position = "none",
+         axis.ticks.x.bottom = element_blank(),
+         axis.line.x.bottom = element_blank(),
+         axis.text.y.right = element_blank(),
+         axis.ticks.y.right = element_blank(),
+         axis.line.y.right = element_blank()
+  )
 ```
 
 ##### 3.2.2. By age
