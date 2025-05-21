@@ -1,6 +1,6 @@
 ### This repository contains the R scripts for:
 
-Guoqiang Zhang, Per Tynelius, Maya B. Mathur, Matteo Quartagno, Gunnar Brandén, Fredrik Liljeros, Kyriaki Kosidou. **[Population Trends and Individual Fluidity of Sexual Identity Among Stockholm County Residents](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2827231?utm_source=For_The_Media&utm_medium=referral&utm_campaign=ftm_links&utm_term=120424).** _JAMA Netw Open_. 2024;7(12):e2447627.
+Willi Zhang, Per Tynelius, Maya B. Mathur, Matteo Quartagno, Gunnar Brandén, Fredrik Liljeros, Kyriaki Kosidou. **[Population Trends and Individual Fluidity of Sexual Identity Among Stockholm County Residents](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2827231?utm_source=For_The_Media&utm_medium=referral&utm_campaign=ftm_links&utm_term=120424).** _JAMA Netw Open_. 2024;7(12):e2447627.
 
 The R scripts include:
 * **SPHC-2010.Rmd:** analyses of sexual identity using SPHC 2010 dataset.
